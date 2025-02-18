@@ -1,234 +1,232 @@
 #include "main.h"
 #include "lemlib/api.hpp" // IWYU pragma: keep
 #include "autons.hpp"
+#include "globals.hpp"
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "pros/llemu.hpp"
-double hue;
+#include "pros/apix.h"
+#include "robodash/apix.h"
 
-// controller
+
+double hue;
+bool intakeActive = false;
+
+int autonSelected = 0; // 0 = no auton selected
+
+const int numStates = 3;
+int states[numStates] = {0, 16, 195};
+int currentState = 0;
+int target = 0;
+
+void nextState() {
+    currentState += 1;
+
+    if (currentState == numStates) {
+        currentState = 0;
+    }
+    target = states[currentState];
+}
+
+void liftControl() {
+    double kp = 1.14;
+    double error = target - rotation_sensor.get_position()/100;
+    double velocity = kp * error;
+    ladyBrown.move_velocity(velocity);
+}
+
+rd_view_t *image_view = rd_view_create("Image");
+
+
+rd::Selector selector({
+    {"Best auton", best_auton},
+    {"Simple auton", simple_auton},
+    {"Good auton", good_auton},
+});
+
+rd::Console console;
+
+rd::Image image("S/usd/logo.bin", "Team Logo");
+
+
+// Controller
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
-// motor groups
-pros::MotorGroup leftMotors({-5, 4, -3},
-                            pros::MotorGearset::blue); // left motor group - ports 3 (reversed), 4, 5 (reversed)
-pros::MotorGroup rightMotors({6, -9, 7}, pros::MotorGearset::blue); // right motor group - ports 6, 7, 9 (reversed)
+// Motor groups
+pros::MotorGroup leftMotors({3, 2, 20}, pros::MotorGearset::blue);  // left motor group
+pros::MotorGroup rightMotors({-1, -5, -9}, pros::MotorGearset::blue); // right motor group
 
-// Inertial Sensor on port 10
-pros::Imu imu(10);
+pros::Imu imu(7);
 
-// drivetrain settings
-lemlib::Drivetrain drivetrain(&leftMotors, // left motor group
-                              &rightMotors, // right motor group
-                              10, // 10 inch track width
-                              lemlib::Omniwheel::NEW_4, // using new 4" omnis
-                              360, // drivetrain rpm is 360
-                              2 // horizontal drift is 2. If we had traction wheels, it would have been 8
-);
+// Drivetrain settings
+lemlib::Drivetrain drivetrain(&leftMotors, &rightMotors, 10, lemlib::Omniwheel::OLD_275, 360, 4);
 
-// lateral motion controller
-lemlib::ControllerSettings linearController(10, // proportional gain (kP)
-                                            0, // integral gain (kI)
-                                            3, // derivative gain (kD)
-                                            3, // anti windup
-                                            1, // small error range, in inches
-                                            100, // small error range timeout, in milliseconds
-                                            3, // large error range, in inches
-                                            500, // large error range timeout, in milliseconds
-                                            20 // maximum acceleration (slew)
-);
+// Lateral motion controller
+lemlib::ControllerSettings linearController(10, 0, 3, 3, 1, 100, 3, 500, 20);
 
-// angular motion controller
-lemlib::ControllerSettings angularController(2, // proportional gain (kP)
-                                             0, // integral gain (kI)
-                                             10, // derivative gain (kD)
-                                             3, // anti windup
-                                             1, // small error range, in degrees
-                                             100, // small error range timeout, in milliseconds
-                                             3, // large error range, in degrees
-                                             500, // large error range timeout, in milliseconds
-                                             0 // maximum acceleration (slew)
-);
+// Angular motion controller
+lemlib::ControllerSettings angularController(0.3, 0, 20.5, 0, 0, 0, 0, 0, 0);
 
-// sensors for odometry
-lemlib::OdomSensors sensors(nullptr, // vertical tracking wheel, set to nullptr as we don't have one
-                            nullptr, // vertical tracking wheel 2, set to nullptr as we don't have a second one
-                            nullptr, // horizontal tracking wheel set to nullptr as we don't have one
-                            nullptr, // horizontal tracking wheel 2, set to nullptr as we don't have a second one
-                            &imu // inertial sensor
-);
+// Sensors for odometry
+lemlib::OdomSensors sensors(nullptr, nullptr, nullptr, nullptr, &imu);
 
-// input curve for throttle input during driver control
-lemlib::ExpoDriveCurve throttleCurve(3, // joystick deadband out of 127
-                                     10, // minimum output where drivetrain will move out of 127
-                                     1.019 // expo curve gain
-);
+// Input curves for driver control
+lemlib::ExpoDriveCurve throttleCurve(3, 10, 1.019);
+lemlib::ExpoDriveCurve steerCurve(3, 10, 1.019);
 
-// input curve for steer input during driver control
-lemlib::ExpoDriveCurve steerCurve(3, // joystick deadband out of 127
-                                  10, // minimum output where drivetrain will move out of 127
-                                  1.019 // expo curve gain
-);
-
-// create the chassis
+// Create the chassis
 lemlib::Chassis chassis(drivetrain, linearController, angularController, sensors, &throttleCurve, &steerCurve);
 
 /**
- * Runs initialization code. This occurs as soon as the program is started.
- *
- * All other competition modes are blocked by initialize; it is recommended
- * to keep execution time for this mode under a few seconds.
+ * Color sorting functions.
  */
-void initialize() {
-	pros::lcd::initialize();
-	chassis.calibrate(); // calibrate sensors
-
-    // the default rate is 50. however, if you need to change the rate, you
-    // can do the following.
-    // lemlib::bufferedStdout().setRate(...);
-    // If you use bluetooth or a wired connection, you will want to have a rate of 10ms
-
-    // for more information on how the formatting for the loggers
-    // works, refer to the fmtlib docs
-
-    // thread to for brain screen and position logging
-
-    pros::Task screenTask([&]() {
-        while (true) {
-            // print robot location to the brain screen
-            pros::lcd::print(0, "X: %f", chassis.getPose().x); // x
-            pros::lcd::print(1, "Y: %f", chassis.getPose().y); // y
-            pros::lcd::print(2, "Theta: %f", chassis.getPose().theta); // heading
-            // log position telemetry
-            lemlib::telemetrySink()->info("Chassis pose: {}", chassis.getPose());
-            // delay to save resources
-            pros::delay(50);
+/*
+void colorSortRed() {
+    if (intakeActive) {
+        optical_sensor.set_led_pwm(100);
+        // Use a single check without a blocking infinite loop.
+        double hue = optical_sensor.get_hue();
+        optical_sensor.set_integration_time(3);
+        if ((hue < 10 || hue > 355)) {
+            setIntake(0);
+            pros::delay(1000);
         }
-       
-    }); 
+    }
+    else {
+        setIntake(0);
+    }
+}
 
-   controller.rumble(".");
-} 
+void colorSortBlue() {
+    if (intakeActive) {
+        setIntake(-115);
+        double hue = optical_sensor.get_hue();
+        optical_sensor.set_integration_time(3);
+        if ((200 < hue && hue < 240)) {
+            setIntake(0);
+            pros::delay(1000);
+        }
+    }
+    else {
+        setIntake(0);
+    }
+}
+*/
 
 /**
- * Runs while the robot is in the disabled state of Field Management System or
- * the VEX Competition Switch, following either autonomous or opcontrol. When
- * the robot is enabled, this task will exit.
+ * Runs initialization code.
+ */
+void initialize() {
+    chassis.calibrate(); // calibrate chassis
+    console.println("Console inititalized!");
+    console.printf("System time: %d\n", pros::millis());
+
+    rotation_sensor.reset_position();
+
+    // Launch the lift control task with proper yielding
+    pros::Task liftControlTask([]{
+        while (true) {
+            liftControl();
+            pros::delay(10);
+        }
+    });
+
+    // Launch the color sort task with a delay in each loop iteration
+    /*
+    pros::Task colorSortTask([]{
+        while (true) {
+            if (alliance == 1) {
+                colorSortRed();
+            }
+            else if (alliance == 2) {
+                colorSortBlue();
+            }
+            pros::delay(50); // Yield to allow other tasks to run
+        }
+    });
+
+    // You can include other initialization code here as needed.
+    */
+}
+    
+
+
+/**
+ * Runs while the robot is disabled.
  */
 void disabled() {}
 
 /**
- * Runs after initialize(), and before autonomous when connected to the Field
- * Management System or the VEX Competition Switch. This is intended for
- * competition-specific initialization routines, such as an autonomous selector
- * on the LCD.
- *
- * This task will exit when the robot is enabled and autonomous or opcontrol
- * starts.
+ * Runs competition initialization routines.
  */
 void competition_initialize() {}
 
 /**
- * Runs the user autonomous code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the autonomous
- * mode. Alternatively, this function may be called in initialize or opcontrol
- * for non-competition testing purposes.
- *
- * If the robot is disabled or communications is lost, the autonomous task
- * will be stopped. Re-enabling the robot will restart the task, not re-start it
- * from where it left off.
+ * Autonomous routine.
  */
 void autonomous() {
-	// set position to x:0, y:0, heading:0
-    chassis.setPose(0, 0, 0);
-    autonList[selectedAutonIndex].function();
-    // move 48" forwards
-    //chassis.moveToPoint(0, 48, 10000);
+    // set position to x:0, y:0, heading:0
+    //chassis.setPose(0, 0, 0);
+    // turn to face heading 90 with a very long timeout
+    //chassis.turnToHeading(90, 100000);
+
+    //selector.run_auton();
+    // Additional autonomous actions can be added here if needed.
 }
 
 /**
- * Runs the operator control code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the operator
- * control mode.
- *
- * If no competition control is connected, this function will run immediately
- * following initialize().
- *
- * If the robot is disabled or communications is lost, the
- * operator control task will be stopped. Re-enabling the robot will restart the
- * task, not resume it from where it left off.
+ * Operator control code.
  */
 void opcontrol() {
-	 // loop forever
     while (true) {
-        // get left y and right y positions
-        int leftY = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-        int rightY = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
-
-        // move the robot
+        // Retrieve joystick values for tank control.
+        int rightY = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+        int leftY = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
         chassis.tank(leftY, rightY);
 
-        // delay to save resources
-        pros::delay(25);
+        pros::delay(25); // Delay to save resources
 
-		 if (controller.get_digital(DIGITAL_B) && controller.get_digital(DIGITAL_DOWN))
-    {
-      autonomous();
-    }
-
-    if (controller.get_digital(DIGITAL_UP))
-    {
-      setIntake(100);
-
-      if (alliance = 1) { // 1 = red alliance so if red alliance run this
-      hue = optical_sensor.get_hue(); //Gets hue from the optical sensor
-        if (hue > 0) // If the hue is less than 360 (360 hue is the color blue) then intake red rings and reverse blue rings
-        {
-          setIntake(100); //If the ring color is red the intake will run normally
+        
+        if (controller.get_digital(DIGITAL_B) && controller.get_digital(DIGITAL_DOWN)) {
+            autonomous();
         }
-        else 
-        {
-          setIntake(-100); //If the ring color is blue the intake will reverse
-        }
-        }
-        else if (alliance = 2) { // 2 = blue alliance so if blue alliance run this
-        hue = optical_sensor.get_hue(); //Gets hue from the optical sensor
-          if (hue < 360) // If the hue is greater than 0 (0 hue is the color red) then intake blue rings and reverse red rings
-          {
-            setIntake(100); 
-          }
-          else 
-          {
-            setIntake(-100);
-          }
-      }
-    }
-    else if (controller.get_digital(DIGITAL_DOWN))
-    {
-      setIntake(100); 
-    }
-    else if (controller.get_digital(DIGITAL_RIGHT))
-    {
-      setIntake(0);
-    }
 
-    if (controller.get_digital_new_press(DIGITAL_R1))
-    {
-      clamp1.toggle();
-    }
 
-    if (controller.get_digital(DIGITAL_L1))
-    {
-      rotation_sensor.set_position(180);
-    }
-    if (controller.get_digital(DIGITAL_L2))
-    {
-      rotation_sensor.set_position(0);
-    }
+       // if (controller.get_digital_new_press(DIGITAL_UP)) {
+            //angularController.kD += 0.1;
+            //console.printf("New Kd: %.2f\n", angularController.kD);
+        //}
+        
+        if (controller.get_digital(DIGITAL_UP)) {
+          intakeActive = true;
+          //colorSortRed();
+          setIntake(-115);
+       }
+        if (controller.get_digital(DIGITAL_DOWN)) {
+           
+            intakeActive = true;
+            setIntake(115);
+        }
+        if (controller.get_digital(DIGITAL_RIGHT)) {
+            good_auton();
+            intakeActive = false;
+            setIntake(0);
+        }
+
+        if (controller.get_digital_new_press(DIGITAL_R1)) {
+            clamp1.toggle();
+        }
+        
+        if (controller.get_digital_new_press(DIGITAL_Y)) {
+            hang.toggle();
+        }
+
+        if (controller.get_digital_new_press(DIGITAL_L1)) {
+            nextState();
+        }
+
     }
 }

@@ -8,6 +8,11 @@ void setIntake(int intakePower)
   hooks.move(intakePower);
 }
 
+void setLadyBrown(int ladyBrownPower)
+{
+  ladyBrown.move_velocity(ladyBrownPower);
+}
+
 void clampSwitch()
 {
  if (clamp1.is_extended())
