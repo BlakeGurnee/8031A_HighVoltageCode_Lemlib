@@ -13,6 +13,18 @@ void setLadyBrown(int ladyBrownPower)
   ladyBrown.move_velocity(ladyBrownPower);
 }
 
+void tipperSwitch()
+{
+ if (tipper.is_extended())
+  {
+    tipper.retract();
+  }
+ else
+  {
+    tipper.extend();
+  }
+}
+
 void clampSwitch()
 {
  if (clamp1.is_extended())

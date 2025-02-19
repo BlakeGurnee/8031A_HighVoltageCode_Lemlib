@@ -10,6 +10,7 @@ extern pros::Motor ladyBrown;
 
 //pneumatics
 extern pros::adi::Pneumatics clamp1;
+extern pros::adi::Pneumatics tipper;
 
 
 //Sensors

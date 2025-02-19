@@ -33,7 +33,7 @@ void nextState() {
 
 void liftControl() {
     double kp = 1.14;
-    double error = target - rotation_sensor.get_position()/100;
+    double error = target - rotation_sensor.get_position();
     double velocity = kp * error;
     ladyBrown.move_velocity(velocity);
 }
@@ -65,10 +65,10 @@ pros::Imu imu(7);
 lemlib::Drivetrain drivetrain(&leftMotors, &rightMotors, 10, lemlib::Omniwheel::OLD_275, 360, 4);
 
 // Lateral motion controller
-lemlib::ControllerSettings linearController(10, 0, 3, 3, 1, 100, 3, 500, 20);
+lemlib::ControllerSettings linearController(10, 0, 3, 0, 0, 0, 0, 0, 0);
 
 // Angular motion controller
-lemlib::ControllerSettings angularController(0.3, 0, 20.5, 0, 0, 0, 0, 0, 0);
+lemlib::ControllerSettings angularController(.5, 0, 0, 0, 0, 0, 0, 0, 0);
 
 // Sensors for odometry
 lemlib::OdomSensors sensors(nullptr, nullptr, nullptr, nullptr, &imu);
@@ -83,7 +83,7 @@ lemlib::Chassis chassis(drivetrain, linearController, angularController, sensors
 /**
  * Color sorting functions.
  */
-/*
+
 void colorSortRed() {
     if (intakeActive) {
         optical_sensor.set_led_pwm(100);
@@ -123,6 +123,7 @@ void initialize() {
     chassis.calibrate(); // calibrate chassis
     console.println("Console inititalized!");
     console.printf("System time: %d\n", pros::millis());
+    imu.reset();
 
     rotation_sensor.reset_position();
 
@@ -169,9 +170,11 @@ void competition_initialize() {}
  */
 void autonomous() {
     // set position to x:0, y:0, heading:0
-    //chassis.setPose(0, 0, 0);
+    chassis.setPose(0, 0, 0);
+
     // turn to face heading 90 with a very long timeout
     //chassis.turnToHeading(90, 100000);
+    chassis.moveToPoint(0, 48, 100000);
 
     //selector.run_auton();
     // Additional autonomous actions can be added here if needed.
@@ -205,13 +208,12 @@ void opcontrol() {
           //colorSortRed();
           setIntake(-115);
        }
-        if (controller.get_digital(DIGITAL_DOWN)) {
+        //if (controller.get_digital(DIGITAL_DOWN)) {
            
-            intakeActive = true;
-            setIntake(115);
-        }
+         //   intakeActive = true;
+          //  setIntake(115);
+       // }
         if (controller.get_digital(DIGITAL_RIGHT)) {
-            good_auton();
             intakeActive = false;
             setIntake(0);
         }
@@ -219,14 +221,13 @@ void opcontrol() {
         if (controller.get_digital_new_press(DIGITAL_R1)) {
             clamp1.toggle();
         }
-        
+
         if (controller.get_digital_new_press(DIGITAL_Y)) {
-            hang.toggle();
+            tipper.toggle();
         }
 
         if (controller.get_digital_new_press(DIGITAL_L1)) {
-            nextState();
+          nextState();
         }
-
     }
 }
