@@ -18,13 +18,12 @@ bool intakeActive = false;
 int autonSelected = 0; // 0 = no auton selected
 
 const int numStates = 3;
-int states[numStates] = {0, 16, 195};
+int states[numStates] = {0, 1600, 19500}; // or try 0,300,2000
 int currentState = 0;
 int target = 0;
 
 void nextState() {
     currentState += 1;
-
     if (currentState == numStates) {
         currentState = 0;
     }
@@ -35,7 +34,7 @@ void liftControl() {
     double kp = 1.14;
     double error = target - rotation_sensor.get_position();
     double velocity = kp * error;
-    ladyBrown.move_velocity(velocity);
+    ladyBrown.move(velocity);
 }
 
 rd_view_t *image_view = rd_view_create("Image");
@@ -68,7 +67,7 @@ lemlib::Drivetrain drivetrain(&leftMotors, &rightMotors, 10, lemlib::Omniwheel::
 lemlib::ControllerSettings linearController(10, 0, 3, 0, 0, 0, 0, 0, 0);
 
 // Angular motion controller
-lemlib::ControllerSettings angularController(.5, 0, 0, 0, 0, 0, 0, 0, 0);
+lemlib::ControllerSettings angularController(5.5, 0, 45.5, 3, 1, 150, 3, 500, 0);
 
 // Sensors for odometry
 lemlib::OdomSensors sensors(nullptr, nullptr, nullptr, nullptr, &imu);
