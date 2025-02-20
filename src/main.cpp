@@ -18,7 +18,7 @@ bool intakeActive = false;
 int autonSelected = 0; // 0 = no auton selected
 
 const int numStates = 3;
-int states[numStates] = {0, 1600, 19500}; // or try 0,300,2000
+int states[numStates] = {0, 25, 195}; // or try 0,300,2000
 int currentState = 0;
 int target = 0;
 
@@ -31,10 +31,11 @@ void nextState() {
 }
 
 void liftControl() {
-    double kp = 1.14;
-    double error = target - rotation_sensor.get_position();
-    double velocity = kp * error;
-    ladyBrown.move(velocity);
+    double kp = 3.15;
+    //double error = target - rotation_sensor.get_position();
+    //double velocity = kp * error;
+   // ladyBrown.move(velocity);
+   ladyBrown.move(kp * (target - (rotation_sensor.get_position()/100.0)));
 }
 
 rd_view_t *image_view = rd_view_create("Image");
@@ -55,19 +56,19 @@ rd::Image image("S/usd/logo.bin", "Team Logo");
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 // Motor groups
-pros::MotorGroup leftMotors({3, 2, 20}, pros::MotorGearset::blue);  // left motor group
-pros::MotorGroup rightMotors({-1, -5, -9}, pros::MotorGearset::blue); // right motor group
+pros::MotorGroup leftMotors({-3, -2, -20}, pros::MotorGearset::blue);  // left motor group
+pros::MotorGroup rightMotors({1, 5, 9}, pros::MotorGearset::blue); // right motor group
 
 pros::Imu imu(7);
 
 // Drivetrain settings
-lemlib::Drivetrain drivetrain(&leftMotors, &rightMotors, 10, lemlib::Omniwheel::OLD_275, 360, 4);
+lemlib::Drivetrain drivetrain(&leftMotors, &rightMotors, 14, lemlib::Omniwheel::OLD_275, 360, 2);
 
 // Lateral motion controller
 lemlib::ControllerSettings linearController(10, 0, 3, 0, 0, 0, 0, 0, 0);
 
 // Angular motion controller
-lemlib::ControllerSettings angularController(5.5, 0, 45.5, 3, 1, 150, 3, 500, 0);
+lemlib::ControllerSettings angularController (2, 0, 10, 3, 1, 100, 3, 500, 0); //(0.35, 0, 15, 0, 0, 0, 0, 0, 0); //(.25, 0.00000025, .25, 0, 0, 0, 0, 0, 0); 
 
 // Sensors for odometry
 lemlib::OdomSensors sensors(nullptr, nullptr, nullptr, nullptr, &imu);
@@ -113,7 +114,7 @@ void colorSortBlue() {
         setIntake(0);
     }
 }
-*/
+
 
 /**
  * Runs initialization code.
@@ -122,7 +123,7 @@ void initialize() {
     chassis.calibrate(); // calibrate chassis
     console.println("Console inititalized!");
     console.printf("System time: %d\n", pros::millis());
-    imu.reset();
+    
 
     rotation_sensor.reset_position();
 
@@ -133,6 +134,7 @@ void initialize() {
             pros::delay(10);
         }
     });
+
 
     // Launch the color sort task with a delay in each loop iteration
     /*
@@ -172,8 +174,8 @@ void autonomous() {
     chassis.setPose(0, 0, 0);
 
     // turn to face heading 90 with a very long timeout
-    //chassis.turnToHeading(90, 100000);
-    chassis.moveToPoint(0, 48, 100000);
+    chassis.turnToHeading(90, 10000);
+   // chassis.moveToPoint(0, 48, 100000);
 
     //selector.run_auton();
     // Additional autonomous actions can be added here if needed.
@@ -185,11 +187,9 @@ void autonomous() {
 void opcontrol() {
     while (true) {
         // Retrieve joystick values for tank control.
-        int rightY = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-        int leftY = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
+        int leftY = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+        int rightY = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
         chassis.tank(leftY, rightY);
-
-        pros::delay(25); // Delay to save resources
 
         
         if (controller.get_digital(DIGITAL_B) && controller.get_digital(DIGITAL_DOWN)) {
