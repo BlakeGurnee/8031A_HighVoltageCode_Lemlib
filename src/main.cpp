@@ -189,7 +189,7 @@ void opcontrol() {
         // Retrieve joystick values for tank control.
         int leftY = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
         int rightY = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
-        chassis.tank(leftY, rightY);
+        chassis.tank(-leftY, -rightY);
 
         
         if (controller.get_digital(DIGITAL_B) && controller.get_digital(DIGITAL_DOWN)) {

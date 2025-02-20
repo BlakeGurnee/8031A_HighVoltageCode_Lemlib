@@ -20,7 +20,6 @@ void redRightSide() // Auton for right (or far) side of the field scores 2 rings
   alliance = 1;
   pros::lcd::clear();
   pros::lcd::print(1, "Red Right side Auton Running.");
-  chassis.moveToPoint(30, )
 }
 
 void blueLeftSide()
