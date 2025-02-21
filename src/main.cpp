@@ -14,6 +14,7 @@
 
 double hue;
 bool intakeActive = false;
+ASSET(toMobileGoalRight_txt);
 
 int autonSelected = 0; // 0 = no auton selected
 
@@ -65,7 +66,7 @@ pros::Imu imu(7);
 lemlib::Drivetrain drivetrain(&leftMotors, &rightMotors, 14, lemlib::Omniwheel::OLD_275, 360, 2);
 
 // Lateral motion controller
-lemlib::ControllerSettings linearController(10, 0, 3, 0, 0, 0, 0, 0, 0);
+lemlib::ControllerSettings linearController(10, 0, 3, 3, 1, 100, 3, 500, 20);
 
 // Angular motion controller
 lemlib::ControllerSettings angularController (2, 0, 10, 3, 1, 100, 3, 500, 0); //(0.35, 0, 15, 0, 0, 0, 0, 0, 0); //(.25, 0.00000025, .25, 0, 0, 0, 0, 0, 0); 
@@ -169,15 +170,26 @@ void competition_initialize() {}
 /**
  * Autonomous routine.
  */
+
+
+
 void autonomous() {
+
+
     // set position to x:0, y:0, heading:0
     chassis.setPose(0, 0, 0);
 
-    // turn to face heading 90 with a very long timeout
-    chassis.turnToHeading(90, 10000);
-   // chassis.moveToPoint(0, 48, 100000);
+   chassis.moveToPoint(1.5, 20, 6000);
+   pros::delay(1000);
+   clamp1.retract();
+   pros::delay(1500);
+   setIntake(-115);
+   pros::delay(1500);
+   setIntake(0);
+   chassis.moveToPoint(10, 0, 6000, {.forwards = true}, false);
+   chassis.moveToPoint(0, 10, 6000, {.forwards = false}, false);
 
-    //selector.run_auton();
+   // selector.run_auton();
     // Additional autonomous actions can be added here if needed.
 }
 
@@ -187,31 +199,25 @@ void autonomous() {
 void opcontrol() {
     while (true) {
         // Retrieve joystick values for tank control.
-        int leftY = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-        int rightY = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
+        int rightY = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+        int leftY = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
         chassis.tank(-leftY, -rightY);
 
         
         if (controller.get_digital(DIGITAL_B) && controller.get_digital(DIGITAL_DOWN)) {
             autonomous();
         }
-
-
-       // if (controller.get_digital_new_press(DIGITAL_UP)) {
-            //angularController.kD += 0.1;
-            //console.printf("New Kd: %.2f\n", angularController.kD);
-        //}
         
         if (controller.get_digital(DIGITAL_UP)) {
           intakeActive = true;
           //colorSortRed();
-          setIntake(-115);
+          setIntake(-127);
        }
-        //if (controller.get_digital(DIGITAL_DOWN)) {
+        if (controller.get_digital(DIGITAL_DOWN)) {
            
-         //   intakeActive = true;
-          //  setIntake(115);
-       // }
+            intakeActive = true;
+            setIntake(115);
+        }
         if (controller.get_digital(DIGITAL_RIGHT)) {
             intakeActive = false;
             setIntake(0);

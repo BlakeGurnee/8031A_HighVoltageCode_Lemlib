@@ -6,7 +6,7 @@ pros::Motor hooks(16, pros::v5::MotorGears::blue); // Motor is a normal blue mot
 pros::Motor ladyBrown(18, pros::v5::MotorGears::green); // Motor is a normal green motor on port 10
 
 //Pneumatics
-pros::adi::Pneumatics clamp1('A', false); // Starts clamp in the false (Down) position when the code starts in port A
+pros::adi::Pneumatics clamp1('A', true); // Starts clamp in the false (Down) position when the code starts in port A
 pros::adi::Pneumatics tipper('H', false); // Starts tipper in the false (Down) position when the code starts in port A
 
 //Sensors

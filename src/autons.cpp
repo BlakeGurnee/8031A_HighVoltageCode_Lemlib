@@ -7,6 +7,16 @@ const int drive_speed = 70;
 const int TURN_SPEED = 90;
 const int SWING_SPEED = 95;
 
+ASSET(toFirstMobileGoalLeft_txt);
+ASSET(toMobileGoalRight_txt);
+ASSET(toMobileGoalLeft_txt);
+ASSET(toLadder_txt);
+ASSET(toFirstRing_txt);
+ASSET(toSecondRing_txt);
+ASSET(toThirdRing_txt);
+ASSET(toRingandLadderRight_txt);
+ASSET(testpath_txt);
+
 void redLeftSide() // 4 ring
 {
   alliance = 1;
@@ -15,11 +25,22 @@ void redLeftSide() // 4 ring
   
 }
 
+pros::Task redright(){
+  clamp1.extend();
+  pros::delay(1000);
+  setIntake(115);
+  pros::delay(3000);
+  setIntake(0);
+}
+
 void redRightSide() // Auton for right (or far) side of the field scores 2 rings on mobile goal and touches the ladder
 {
   alliance = 1;
   pros::lcd::clear();
   pros::lcd::print(1, "Red Right side Auton Running.");
+  chassis.setPose(-64.751, -23.904, 93.024);
+
+  chassis.follow(toMobileGoalRight_txt, 10, 2000, false);
 }
 
 void blueLeftSide()
