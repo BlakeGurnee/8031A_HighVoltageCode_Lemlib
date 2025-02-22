@@ -14,12 +14,25 @@
 
 double hue;
 bool intakeActive = false;
-ASSET(toMobileGoalRight_txt);
+ASSET(BlueLeft1_txt);
+ASSET(BlueLeft2_txt);
 
-int autonSelected = 0; // 0 = no auton selected
+rd::Selector selector({
+    {"Red Left", redLeftSide},
+    {"Red Right", redRightSide},
+    {"Blue Left", blueLeftSide},
+    {"Blue Right", blueRightSide},
+    {"Skills", skills}
+});
+
+rd::Console console;
+
+//rd_view_t *image_view = rd_view_create("Image");
+
+//int autonSelected = 0; // 0 = no auton selected
 
 const int numStates = 3;
-int states[numStates] = {0, 25, 195}; // or try 0,300,2000
+int states[numStates] = {0, 80, 2000}; // or try 0,300,2000
 int currentState = 0;
 int target = 0;
 
@@ -32,25 +45,12 @@ void nextState() {
 }
 
 void liftControl() {
-    double kp = 3.15;
+    double kp = 2.80;
     //double error = target - rotation_sensor.get_position();
     //double velocity = kp * error;
    // ladyBrown.move(velocity);
    ladyBrown.move(kp * (target - (rotation_sensor.get_position()/100.0)));
 }
-
-rd_view_t *image_view = rd_view_create("Image");
-
-
-rd::Selector selector({
-    {"Best auton", best_auton},
-    {"Simple auton", simple_auton},
-    {"Good auton", good_auton},
-});
-
-rd::Console console;
-
-rd::Image image("S/usd/logo.bin", "Team Logo");
 
 
 // Controller
@@ -86,35 +86,107 @@ lemlib::Chassis chassis(drivetrain, linearController, angularController, sensors
  */
 
 void colorSortRed() {
-    if (intakeActive) {
-        optical_sensor.set_led_pwm(100);
-        // Use a single check without a blocking infinite loop.
-        double hue = optical_sensor.get_hue();
-        optical_sensor.set_integration_time(3);
-        if ((hue < 10 || hue > 355)) {
-            setIntake(0);
-            pros::delay(1000);
-        }
-    }
-    else {
+    static int ejectState = 0;
+    static uint32_t ejectStartTime = 0;
+    const int intakeTime = 200;  // Time to intake after detection (ms)
+    const int waitTime = 170;    // Time to wait before ejecting (ms)
+    const int ejectTime = 400;   // Time to eject (ms)
+
+    if (!intakeActive) {
         setIntake(0);
+        ejectState = 0;
+        return;
+    }
+
+    double hue = optical_sensor.get_hue();
+    int proximity = optical_sensor.get_proximity();
+
+    switch (ejectState) {
+        case 0: // Normal operation
+            setIntake(-127); // Intake in
+            if ((hue >= 200 && hue <= 240)) {
+                ejectStartTime = pros::millis();
+                ejectState = 1;
+            }
+            break;
+
+        case 1: // Intake for a bit longer
+            setIntake(-127);
+            if (pros::millis() - ejectStartTime >= intakeTime) {
+                ejectStartTime = pros::millis();
+                ejectState = 2;
+                setIntake(0);
+            }
+            break;
+
+        case 2: // Wait for ring to move up
+            if (pros::millis() - ejectStartTime >= waitTime) {
+                ejectStartTime = pros::millis();
+                ejectState = 3;
+                setIntake(127); // Eject out
+            }
+            break;
+
+        case 3: // Eject the ring
+            if (pros::millis() - ejectStartTime >= ejectTime) {
+                ejectState = 0;
+                setIntake(-127); // Resume intake
+            }
+            break;
     }
 }
 
 void colorSortBlue() {
-    if (intakeActive) {
-        setIntake(-115);
-        double hue = optical_sensor.get_hue();
-        optical_sensor.set_integration_time(3);
-        if ((200 < hue && hue < 240)) {
-            setIntake(0);
-            pros::delay(1000);
-        }
-    }
-    else {
+    static int ejectState = 0;
+    static uint32_t ejectStartTime = 0;
+    const int intakeTime = 200;
+    const int waitTime = 300;
+    const int ejectTime = 500;
+
+    if (!intakeActive) {
         setIntake(0);
+        ejectState = 0;
+        return;
+    }
+
+    double hue = optical_sensor.get_hue();
+    int proximity = optical_sensor.get_proximity();
+
+    switch (ejectState) {
+        case 0:
+            setIntake(-127);
+            if ((hue < 10 || hue > 350)) {
+                ejectStartTime = pros::millis();
+                ejectState = 1;
+            }
+            break;
+
+        case 1:
+            setIntake(-127);
+            if (pros::millis() - ejectStartTime >= intakeTime) {
+                ejectStartTime = pros::millis();
+                ejectState = 2;
+                setIntake(0);
+            }
+            break;
+
+        case 2:
+            if (pros::millis() - ejectStartTime >= waitTime) {
+                ejectStartTime = pros::millis();
+                ejectState = 3;
+                setIntake(127);
+            }
+            break;
+
+        case 3:
+            if (pros::millis() - ejectStartTime >= ejectTime) {
+                ejectState = 0;
+                setIntake(-127);
+            }
+            break;
     }
 }
+
 
 
 /**
@@ -122,8 +194,6 @@ void colorSortBlue() {
  */
 void initialize() {
     chassis.calibrate(); // calibrate chassis
-    console.println("Console inititalized!");
-    console.printf("System time: %d\n", pros::millis());
     
 
     rotation_sensor.reset_position();
@@ -138,21 +208,22 @@ void initialize() {
 
 
     // Launch the color sort task with a delay in each loop iteration
-    /*
+    
+    optical_sensor.set_led_pwm(100);
+    optical_sensor.set_integration_time(5);
+
     pros::Task colorSortTask([]{
         while (true) {
             if (alliance == 1) {
                 colorSortRed();
-            }
-            else if (alliance == 2) {
+            } else if (alliance == 2) {
                 colorSortBlue();
             }
-            pros::delay(50); // Yield to allow other tasks to run
+            pros::delay(20); // Reduce CPU usage
         }
     });
 
     // You can include other initialization code here as needed.
-    */
 }
     
 
@@ -174,23 +245,29 @@ void competition_initialize() {}
 
 
 void autonomous() {
-
+    
+    // Run selected autonomous
+    selector.run_auton();
+    
 
     // set position to x:0, y:0, heading:0
-    chassis.setPose(0, 0, 0);
+   // chassis.setPose(64.31, -23.326, 270);
+    // turn to face heading 90 with a very long timeout
+    // chassis.turnToHeading(90, 100000);
+    //chassis.moveToPose(47, -7, 33, 1500, {.maxSpeed = 127});
+    //pros::delay(500);
+    //lift.setTarget(190);
+    //pros::delay(500);
+    //chassis.moveToPoint(-36, -12, 1500, {.forwards = false}, true);
+    //pros::delay(500);
+    //lift.setTarget(0);
+   // chassis.follow(BlueLeft1_txt, 5, 5000);
 
-   chassis.moveToPoint(1.5, 20, 6000);
-   pros::delay(1000);
-   clamp1.retract();
-   pros::delay(1500);
-   setIntake(-115);
-   pros::delay(1500);
-   setIntake(0);
-   chassis.moveToPoint(10, 0, 6000, {.forwards = true}, false);
-   chassis.moveToPoint(0, 10, 6000, {.forwards = false}, false);
+   // pros::Task liftControlTask([]{
+     //  clamp1.retract();
+     //  setIntake(127);
+   // });
 
-   // selector.run_auton();
-    // Additional autonomous actions can be added here if needed.
 }
 
 /**
@@ -203,6 +280,7 @@ void opcontrol() {
         int leftY = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
         chassis.tank(-leftY, -rightY);
 
+
         
         if (controller.get_digital(DIGITAL_B) && controller.get_digital(DIGITAL_DOWN)) {
             autonomous();
@@ -210,14 +288,13 @@ void opcontrol() {
         
         if (controller.get_digital(DIGITAL_UP)) {
           intakeActive = true;
-          //colorSortRed();
-          setIntake(-127);
+          optical_sensor.set_led_pwm(100);
        }
-        if (controller.get_digital(DIGITAL_DOWN)) {
+        //if (controller.get_digital(DIGITAL_DOWN)) {
            
-            intakeActive = true;
-            setIntake(115);
-        }
+         //   intakeActive = true;
+         //   setIntake(115);
+       // }
         if (controller.get_digital(DIGITAL_RIGHT)) {
             intakeActive = false;
             setIntake(0);

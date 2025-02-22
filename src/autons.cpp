@@ -7,50 +7,81 @@ const int drive_speed = 70;
 const int TURN_SPEED = 90;
 const int SWING_SPEED = 95;
 
-ASSET(toFirstMobileGoalLeft_txt);
-ASSET(toMobileGoalRight_txt);
-ASSET(toMobileGoalLeft_txt);
-ASSET(toLadder_txt);
-ASSET(toFirstRing_txt);
-ASSET(toSecondRing_txt);
-ASSET(toThirdRing_txt);
-ASSET(toRingandLadderRight_txt);
-ASSET(testpath_txt);
+ASSET(BlueLeft1_txt);
+ASSET(BlueLeft2_txt);
+ASSET(BlueRight1_txt);
+ASSET(BlueRight2_txt);
+ASSET(RedLeft1_txt);
+ASSET(RedLeft2_txt);
+ASSET(RedRight1_txt);
+ASSET(RedRight2_txt);
 
 void redLeftSide() // 4 ring
 {
   alliance = 1;
-  pros::lcd::clear();
-  pros::lcd::print(1, "Red Left side Auton Running.");
+  chassis.setPose(64.609, -23.528, 90);
+  chassis.follow(RedLeft1, 5, 5000);
+  chassis.setPose(-28.338, 26.722, 308.4)
+  chassis.follow(RedLeft2, 5, 5000, false);
+
+  pros::Task redleft([]{
+  setIntake(0);
+  clamp1.retract();
+  pros::delay(500);
+  setIntake(-127);
+});
   
 }
 
-pros::Task redright(){
-  clamp1.extend();
-  pros::delay(1000);
-  setIntake(115);
-  pros::delay(3000);
-  setIntake(0);
-}
 
 void redRightSide() // Auton for right (or far) side of the field scores 2 rings on mobile goal and touches the ladder
 {
   alliance = 1;
-  pros::lcd::clear();
-  pros::lcd::print(1, "Red Right side Auton Running.");
-  chassis.setPose(-64.751, -23.904, 93.024);
+  chassis.setPose(65.276, 23.73, 81);
+  chassis.follow(RedRight1, 5, 5000);
+  chassis.setPose(-27.753, -20.153, 100);
+  chassis.follow(RedRight2, 5, 5000, false);
 
-  chassis.follow(toMobileGoalRight_txt, 10, 2000, false);
+pros::Task redRight([]{
+  setIntake(0);
+  clamp1.retract();
+  pros::delay(500);
+  setIntake(-127);
+});
 }
 
 void blueLeftSide()
 {
   alliance = 2;
-  pros::lcd::clear();
-  pros::lcd::print(1, "Blue Left side Auton Running.");
+  chassis.setPose(64.609, -23.528, 226);
+  chassis.follow(BlueLeft1_txt, 5, 5000);
+  chassis.setPose(27.88, -21.275, 62.7);
+  chassis.follow(BlueLeft2_txt, 5, 5000, false);
+ 
+ pros::Task blueleft([]{
+  setIntake(0);
+  clamp1.retract();
+  pros::delay(500);
+  setIntake(-127);
+});
+
 }
 
 void blueRightSide() { // 4 ring
+
+  chassis.setPose(65.276, 23.73, 270.4);
+  chassis.follow(BlueRight1, 5, 5000);
+  chassis.setPose(28.311, 20.986, 123.2);
+  chassis.follow(BlueRight2, 5, 5000, false);
+
+  pros::Task blueright([]{
+  setIntake(0);
+  clamp1.retract();
+  pros::delay(500);
+  setIntake(-127);
+});
+
+  /*
   alliance = 2;
   clamp1.retract();
   pros::delay(500);
@@ -76,18 +107,15 @@ void blueRightSide() { // 4 ring
 
   chassis.moveToPoint(48, 48, 2000);
   chassis.waitUntilDone();
+  */
 }
   
-void soloWp() //Scores 1 ring on alliance wall stake and 2 rings on alliance mobile goal and touches the ladder
-{
-
-}
 
 void skills() //Auton for skills matches
 {
   alliance = 1;
-  pros::lcd::clear();
-  pros::lcd::print(1, "Skills Auton Running.");
+  chassis.setPose(-64.804, 35.429, 100);
+
   
 }
 
@@ -104,14 +132,10 @@ void autonTest() // auton for testing purposes
 void setAllianceRed() // Sets alliance to red for driver control color sorting test
 {
   alliance  = 1;
-  pros::lcd::clear();
-  pros::lcd::print(1, "Red Auton Running.");
 }
 void setAllianceBlue() // Sets alliance to blue for driver control color sorting test
 {
   alliance = 2;
-  pros::lcd::clear();
-  pros::lcd::print(1, "Blue Auton Running.");
 }
 
 void best_auton() {
