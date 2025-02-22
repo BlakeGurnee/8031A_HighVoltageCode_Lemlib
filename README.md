@@ -38,6 +38,7 @@ Our robot is equipped with a diverse array of sensors to enhance the robot's per
   - 🔵 Inertial Sensor — Keeps track of orientation and ensures that turns are accurate.
   - 🔵 Rotation Sensor — Measures our ladybrown's position for precision movements.
   - 🔵 Distance Sensor  — Detects obstacles and helps with autonomous alignment.
+  - 🔵 Limit Switch  — Detects when ladybrown hits it and sets it's position back to zero just in case the rotation sensor gets out of tune.
 
 
 ## 🛠️ Autonomous Selector
